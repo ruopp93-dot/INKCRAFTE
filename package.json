@@ -1,0 +1,18 @@
+{
+  "name": "tattoo-portfolio-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Одностраничный сайт тату-мастера с админкой для добавления работ и редактирования контактов",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "cookie-parser": "^1.4.6",
+    "mime": "^4.0.4",
+    "multer": "^1.4.5-lts.1",
+    "serverless-http": "^3.2.0"
+  }
+}

@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Local build caches
+.vercel/
+
+# Environment
+.env
+.env.local
+
+# Uploads and local data (avoid committing user images and local db)
+public/uploads/
+data/db.json
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db

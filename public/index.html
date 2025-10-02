@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Тату-мастер — Портфолио и запись</title>
+  <meta name="description" content="Современное портфолио тату-мастера: работы, стиль, запись на сеанс." />
+  <meta name="theme-color" content="#0f0f10" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Тату-мастер — Портфолио и запись" />
+  <meta property="og:description" content="Черная графика, минимализм и аккуратные линии. Запишитесь на консультацию онлайн." />
+  <meta property="og:url" content="/" />
+  <meta property="og:image" content="/uploads/og-preview.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <div class="logo">INK<span>CRAFT</span></div>
+      <nav>
+        <a href="#works">Работы</a>
+        <a href="#about">О мастере</a>
+        <a href="#contact">Контакты</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="top">
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="container hero-inner">
+        <h1 class="reveal">Индивидуальные тату под ваш характер</h1>
+        <p class="sub reveal delay-1">Черная графика, минимализм и аккуратные линии. Запишитесь на консультацию онлайн.</p>
+        <div class="cta reveal delay-2">
+          <a id="bookBtn" class="btn primary" href="#contact">Записаться</a>
+          <a class="btn ghost" href="#works">Смотреть работы</a>
+        </div>
+        <div class="marquee" aria-hidden="true">
+          <div class="track">
+            <span>blackwork • linework • minimal • fine line • lettering • </span>
+            <span>Успей заказать сегодня и получи скидку 50% </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="works section" id="works">
+      <div class="container">
+        <div class="section-head">
+          <h2 class="reveal">Портфолио</h2>
+          <p class="muted reveal delay-1">Свежие работы. Нажмите на фото, чтобы увеличить.</p>
+        </div>
+        <div id="gallery" class="gallery"></div>
+      </div>
+    </section>
+
+    <section class="about section" id="about">
+      <div class="container about-grid">
+        <div class="about-text">
+          <h2 class="reveal">О мастере</h2>
+          <p class="reveal delay-1">Работаю в современном стиле: чистые линии, продуманные композиции, забота о заживлении. Помогаю оформить идею и сделать эскиз под вашу анатомию.</p>
+          <ul class="ticks reveal delay-2">
+            <li>Индивидуальные эскизы</li>
+            <li>Стерильность и одноразовые расходники</li>
+            <li>Подробная консультация и уход</li>
+          </ul>
+        </div>
+        <div class="about-media parallax" aria-hidden="true">
+          <div class="card"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact section" id="contact">
+      <div class="container contact-card">
+        <div>
+          <h2 class="reveal">Контакты и запись</h2>
+          <p class="muted reveal delay-1">Оставьте заявку в удобном мессенджере. Уточню идею, размер и расположение.</p>
+          <div id="contactLinks" class="links reveal delay-2"></div>
+        </div>
+        <div class="side-note reveal delay-3">
+          <div class="tip">Совет</div>
+          <p>Добавьте 2–3 референса, ориентировочные размеры и место на теле — так я быстрее предложу эскиз.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div id="footerName">Тату-мастер</div>
+      <div class="small muted">© <span id="year"></span> Все права защищены</div>
+      <a class="small" href="/admin.html">Админка</a>
+    </div>
+  </footer>
+
+  <div id="lightbox" class="lightbox" aria-hidden="true">
+    <button class="close" aria-label="Закрыть">×</button>
+    <img alt="Работа тату" />
+  </div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

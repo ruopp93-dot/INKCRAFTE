@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Админка — Тату-мастер</title>
+  <meta name="theme-color" content="#0f0f10" />
+  <meta name="robots" content="noindex,nofollow" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .admin { padding: 28px 0 80px; }
+    .card { background:#121214; border:1px solid #232329; border-radius:16px; padding: 18px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    label { display:block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input[type="text"], input[type="tel"] { width: 100%; padding: 12px 12px; border-radius: 10px; border:1px solid #2a2a2e; background:#16161a; color: var(--text); }
+    input[type="file"] { width:100%; }
+    .row { display:flex; gap: 10px; flex-wrap: wrap; }
+    .btn.small { padding: 10px 14px; font-size: 14px; }
+    .preview { display:grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 12px; }
+    .preview img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+    .auth-card { max-width: 420px; margin: 40px auto; text-align: center; }
+    .thumb { position: relative; }
+    .thumb button { position: absolute; top: 6px; right: 6px; background:#111; color:#fff; border:1px solid #2a2a2e; border-radius: 8px; padding: 6px 8px; cursor:pointer; }
+    .avatar { display:flex; align-items:center; gap:12px; }
+    .avatar img { width:64px; height:64px; border-radius: 50%; object-fit: cover; border:1px solid #2a2a2e; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <div class="logo">INK<span>CRAFT</span> — Admin</div>
+      <nav>
+        <a href="/">← На сайт</a>
+        <button id="logoutBtn" class="btn ghost small" style="margin-left:12px; display:none;">Выйти</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="admin container">
+    <h1>Управление сайтом</h1>
+
+    <section id="authSection" class="card auth-card" style="display:none;">
+      <h3>Вход</h3>
+      <p class="muted">Введите PIN для доступа к админке.</p>
+      <form id="loginForm" class="row" style="justify-content:center;">
+        <input style="max-width:200px" type="text" name="pin" inputmode="numeric" pattern="[0-9]*" placeholder="PIN" />
+        <button class="btn primary small" type="submit">Войти</button>
+      </form>
+      <div id="loginMsg" class="small muted" style="margin-top:8px;"></div>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <h3>Контакты</h3>
+        <p class="muted">Измените имя и реквизиты связи.</p>
+        <form id="contactForm">
+          <label>Имя мастера
+            <input type="text" name="name" placeholder="Тату-мастер" />
+          </label>
+          <div class="row">
+            <label style="flex:1">Телефон
+              <input type="tel" name="phone" placeholder="+7 000 000-00-00" />
+            </label>
+            <label style="flex:1">Instagram (ник)
+              <input type="text" name="instagram" placeholder="nickname" />
+            </label>
+          </div>
+          <div class="row">
+            <label style="flex:1">Telegram (ник)
+              <input type="text" name="telegram" placeholder="nickname" />
+            </label>
+            <label style="flex:1">WhatsApp (номер)
+              <input type="text" name="whatsapp" placeholder="+7 900 000 00 00" />
+            </label>
+          </div>
+          <div class="row">
+            <button class="btn primary small" type="submit">Сохранить</button>
+          </div>
+        </form>
+        <hr style="border:none; border-top:1px solid #232329; margin:16px 0;"/>
+        <h4>Аватар мастера</h4>
+        <div class="avatar">
+          <img id="avatarPreview" alt="Аватар" src=""/>
+          <form id="avatarForm" class="row">
+            <input type="file" name="avatar" accept="image/*" />
+            <button class="btn small" type="submit">Загрузить</button>
+            <button id="avatarDelete" class="btn small ghost" type="button">Убрать</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Добавить работы</h3>
+        <p class="muted">Загрузите JPG/PNG/WEBP до 10 МБ (можно несколько).</p>
+        <form id="uploadForm">
+          <input type="file" name="photos" accept="image/*" multiple />
+          <div class="row">
+            <button class="btn primary small" type="submit">Загрузить</button>
+            <span id="uploadStatus" class="muted"></span>
+          </div>
+        </form>
+        <div id="preview" class="preview"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/admin.js" type="module"></script>
+</body>
+</html>
