@@ -44,7 +44,13 @@
   <main class="admin container">
     <h1>Управление сайтом</h1>
 
-    <section id="authSection" class="card auth-card" style="display:none;">
+    <noscript>
+      <div class="card" style="margin:16px 0;">
+        Для работы админки требуется включённый JavaScript.
+      </div>
+    </noscript>
+
+    <section id="authSection" class="card auth-card">
       <h3>Вход</h3>
       <p class="muted">Введите PIN для доступа к админке.</p>
       <form id="loginForm" class="row" style="justify-content:center;">
@@ -54,7 +60,7 @@
       <div id="loginMsg" class="small muted" style="margin-top:8px;"></div>
     </section>
 
-    <div class="grid">
+    <div class="grid" style="display:none;">
       <section class="card">
         <h3>Контакты</h3>
         <p class="muted">Измените имя и реквизиты связи.</p>
@@ -97,7 +103,7 @@
       <section class="card">
         <h3>Добавить работы</h3>
         <p class="muted">Загрузите JPG/PNG/WEBP до 10 МБ (можно несколько).</p>
-        <form id="uploadForm">
+        <form id="uploadForm" method="post" action="/api/photos" enctype="multipart/form-data">
           <input type="file" name="photos" accept="image/*" multiple />
           <div class="row">
             <button class="btn primary small" type="submit">Загрузить</button>

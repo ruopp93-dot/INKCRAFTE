@@ -2,7 +2,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
 async function fetchContact() {
-  const res = await fetch('/api/contact');
+  const res = await fetch('/api/contact', { credentials: 'same-origin' });
   return res.json();
 }
 
@@ -10,7 +10,8 @@ async function saveContact(values) {
   const res = await fetch('/api/contact', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(values)
+    body: JSON.stringify(values),
+    credentials: 'same-origin'
   });
   return res.json();
 }
@@ -36,18 +37,18 @@ async function initContact() {
   avatarForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(avatarForm);
-    const res = await fetch('/api/avatar', { method: 'POST', body: fd });
+    const res = await fetch('/api/avatar', { method: 'POST', body: fd, credentials: 'same-origin' });
     const out = await res.json();
     if (out.avatar) avatarImg.src = out.avatar;
   });
   avatarDel.addEventListener('click', async () => {
-    await fetch('/api/avatar', { method: 'DELETE' });
+    await fetch('/api/avatar', { method: 'DELETE', credentials: 'same-origin' });
     avatarImg.src = '';
   });
 }
 
 async function loadPreview() {
-  const res = await fetch('/api/photos');
+  const res = await fetch('/api/photos', { credentials: 'same-origin' });
   const data = await res.json();
   const wrap = $('#preview');
   wrap.innerHTML = '';
@@ -55,14 +56,14 @@ async function loadPreview() {
     const div = document.createElement('div');
     div.className = 'thumb';
     const img = document.createElement('img');
-    img.src = p.url; img.alt = p.name;
+    img.src = p.url; img.alt = p.publicId || '';
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.textContent = 'Удалить';
     btn.addEventListener('click', async () => {
       if (!confirm('Удалить это фото?')) return;
-      const name = decodeURIComponent(p.url.split('/').pop());
-      await fetch(`/api/photos/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      const body = JSON.stringify({ publicId: p.publicId || decodeURIComponent(p.url.split('/').pop()) });
+      await fetch(`/api/photos`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body, credentials: 'same-origin' });
       await loadPreview();
     });
     div.appendChild(img);
@@ -79,8 +80,12 @@ async function initUpload() {
     const fd = new FormData(form);
     status.textContent = 'Загрузка...';
     try {
-      const res = await fetch('/api/photos', { method: 'POST', body: fd });
+      const res = await fetch('/api/photos', { method: 'POST', body: fd, credentials: 'same-origin' });
       const data = await res.json();
+      if (!res.ok) {
+        status.textContent = data?.error || 'Ошибка (проверьте вход по PIN)';
+        return;
+      }
       status.textContent = `Готово: ${data.uploaded?.length || 0}`;
       await loadPreview();
     } catch (e) {
@@ -91,7 +96,7 @@ async function initUpload() {
 
 // Auth
 async function checkAuth() {
-  const res = await fetch('/api/auth/status');
+  const res = await fetch('/api/auth/status', { credentials: 'same-origin' });
   const { authenticated } = await res.json();
   const authSection = $('#authSection');
   const grid = document.querySelector('.grid');
@@ -118,7 +123,7 @@ function initAuthUI() {
     msg.textContent = '';
     const fd = new FormData(form);
     const pin = fd.get('pin');
-    const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin }) });
+    const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin }), credentials: 'same-origin' });
     if (res.ok) {
       await checkAuth();
     } else {
@@ -126,7 +131,7 @@ function initAuthUI() {
     }
   });
   $('#logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
     await checkAuth();
   });
 }

@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 
@@ -16,6 +17,21 @@ const ADMIN_PIN = process.env.ADMIN_PIN || '1234';
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'change-this-secret';
 
 const allowedExt = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+
+// Cloudinary config (optional)
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
+const CLOUD_API_KEY = process.env.CLOUDINARY_API_KEY;
+const CLOUD_API_SECRET = process.env.CLOUDINARY_API_SECRET;
+const CLOUD_FOLDER = process.env.CLOUDINARY_FOLDER || 'inkcraft';
+const USE_CLOUD = !!(CLOUD_NAME && CLOUD_API_KEY && CLOUD_API_SECRET);
+if (USE_CLOUD) {
+  cloudinary.config({
+    cloud_name: CLOUD_NAME,
+    api_key: CLOUD_API_KEY,
+    api_secret: CLOUD_API_SECRET,
+    secure: true,
+  });
+}
 
 function ensureDir(p) { if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); }
 function readJSONSafe(file, fallback) {
@@ -50,16 +66,18 @@ try {
   }
 } catch {}
 
-// Upload storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const base = path.basename(file.originalname, ext);
-    const safeBase = base.replace(/[^\p{L}\p{N}_-]+/gu, '-');
-    cb(null, `${Date.now()}-${safeBase}${ext}`);
-  }
-});
+// Upload storage: memory when using Cloudinary, disk otherwise
+const storage = USE_CLOUD
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+      filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        const base = path.basename(file.originalname, ext);
+        const safeBase = base.replace(/[^\p{L}\p{N}_-]+/gu, '-');
+        cb(null, `${Date.now()}-${safeBase}${ext}`);
+      }
+    });
 function fileFilter(req, file, cb) { allowedExt.has(path.extname(file.originalname).toLowerCase()) ? cb(null, true) : cb(new Error('Недопустимый формат файла')); }
 const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -112,51 +130,115 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Photos API
-app.get('/api/photos', (req, res) => {
+app.get('/api/photos', async (req, res) => {
   try {
-    const db = readJSONSafe(DB_FILE, defaultDB);
-    const avatarName = db?.contact?.avatar ? path.basename(db.contact.avatar) : '';
-    const files = fs.readdirSync(UPLOADS_DIR)
-      .filter(f => allowedExt.has(path.extname(f).toLowerCase()))
-      .filter(f => f !== avatarName)
-      .map(f => ({ url: `/uploads/${encodeURIComponent(f)}`, name: f }));
-    res.json({ photos: files });
+    if (USE_CLOUD) {
+      // List from Cloudinary folder /gallery
+      const result = await cloudinary.search
+        .expression(`folder:${CLOUD_FOLDER}/gallery`)
+        .sort_by('created_at', 'desc')
+        .max_results(100)
+        .execute();
+      const photos = (result.resources || []).map(r => ({ url: r.secure_url, publicId: r.public_id }));
+      return res.json({ photos });
+    } else {
+      const db = readJSONSafe(DB_FILE, defaultDB);
+      const avatarName = db?.contact?.avatar ? path.basename(db.contact.avatar) : '';
+      const files = fs.readdirSync(UPLOADS_DIR)
+        .filter(f => allowedExt.has(path.extname(f).toLowerCase()))
+        .filter(f => f !== avatarName)
+        .map(f => ({ url: `/uploads/${encodeURIComponent(f)}`, publicId: f }));
+      return res.json({ photos: files });
+    }
   } catch (e) { res.status(500).json({ error: 'Не удалось получить список работ' }); }
 });
-app.post('/api/photos', requireAuth, upload.array('photos', 20), (req, res) => {
-  const files = (req.files || []).map(f => ({ url: `/uploads/${encodeURIComponent(f.filename)}`, name: f.filename }));
-  res.json({ uploaded: files });
-});
-app.delete('/api/photos/:name', requireAuth, (req, res) => {
+app.post('/api/photos', requireAuth, upload.array('photos', 20), async (req, res) => {
   try {
-    const raw = req.params.name;
-    const name = path.basename(raw);
-    const file = path.join(UPLOADS_DIR, name);
-    if (fs.existsSync(file)) fs.unlinkSync(file);
-    return res.json({ ok: true });
+    if (USE_CLOUD) {
+      const uploads = [];
+      for (const file of (req.files || [])) {
+        const buffer = file.buffer;
+        const uploaded = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream({ folder: `${CLOUD_FOLDER}/gallery` }, (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
+          });
+          stream.end(buffer);
+        });
+        uploads.push({ url: uploaded.secure_url, publicId: uploaded.public_id });
+      }
+      return res.json({ uploaded: uploads });
+    } else {
+      const files = (req.files || []).map(f => ({ url: `/uploads/${encodeURIComponent(f.filename)}`, publicId: f.filename }));
+      return res.json({ uploaded: files });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'Загрузка не удалась' });
+  }
+});
+app.delete('/api/photos', requireAuth, async (req, res) => {
+  try {
+    const id = req.body?.publicId;
+    if (!id) return res.status(400).json({ error: 'publicId обязателен' });
+    if (USE_CLOUD) {
+      await cloudinary.uploader.destroy(id);
+      return res.json({ ok: true });
+    } else {
+      const name = path.basename(id);
+      const file = path.join(UPLOADS_DIR, name);
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+      return res.json({ ok: true });
+    }
   } catch (e) { return res.status(500).json({ error: 'Не удалось удалить файл' }); }
 });
 
-// Avatar upload
+// Avatar upload (Cloudinary preferred)
 const avatarUpload = upload.single('avatar');
-app.post('/api/avatar', requireAuth, (req, res, next) => avatarUpload(req, res, (err) => {
+app.post('/api/avatar', requireAuth, (req, res, next) => avatarUpload(req, res, async (err) => {
   if (err) return res.status(400).json({ error: err.message });
   const db = readJSONSafe(DB_FILE, defaultDB);
-  const file = req.file?.filename;
-  if (!file) return res.status(400).json({ error: 'Файл не получен' });
-  // Optionally delete old avatar
-  if (db.contact?.avatar) {
-    const prev = path.join(UPLOADS_DIR, path.basename(db.contact.avatar));
-    if (fs.existsSync(prev)) try { fs.unlinkSync(prev); } catch {}
-  }
   db.contact = db.contact || {};
-  db.contact.avatar = file;
-  writeJSONSafe(DB_FILE, db);
-  res.json({ avatar: `/uploads/${encodeURIComponent(file)}` });
+  try {
+    if (USE_CLOUD) {
+      // delete previous avatar
+      if (db.contact.avatarPublicId) {
+        try { await cloudinary.uploader.destroy(db.contact.avatarPublicId); } catch {}
+      }
+      const uploaded = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream({ folder: `${CLOUD_FOLDER}/avatar`, public_id: 'master', overwrite: true }, (err2, result) => {
+          if (err2) return reject(err2);
+          resolve(result);
+        });
+        stream.end(req.file.buffer);
+      });
+      db.contact.avatarPublicId = uploaded.public_id;
+      db.contact.avatar = uploaded.secure_url; // keep URL for client
+      writeJSONSafe(DB_FILE, db);
+      return res.json({ avatar: uploaded.secure_url });
+    } else {
+      const file = req.file?.filename;
+      if (!file) return res.status(400).json({ error: 'Файл не получен' });
+      // delete previous local avatar
+      if (db.contact?.avatar) {
+        const prev = path.join(UPLOADS_DIR, path.basename(db.contact.avatar));
+        if (fs.existsSync(prev)) try { fs.unlinkSync(prev); } catch {}
+      }
+      db.contact.avatar = file;
+      writeJSONSafe(DB_FILE, db);
+      return res.json({ avatar: `/uploads/${encodeURIComponent(file)}` });
+    }
+  } catch (e) {
+    return res.status(500).json({ error: 'Не удалось загрузить аватар' });
+  }
 }));
-app.delete('/api/avatar', requireAuth, (req, res) => {
+app.delete('/api/avatar', requireAuth, async (req, res) => {
   const db = readJSONSafe(DB_FILE, defaultDB);
-  if (db.contact?.avatar) {
+  if (USE_CLOUD && db.contact?.avatarPublicId) {
+    try { await cloudinary.uploader.destroy(db.contact.avatarPublicId); } catch {}
+    db.contact.avatarPublicId = '';
+    db.contact.avatar = '';
+    writeJSONSafe(DB_FILE, db);
+  } else if (db.contact?.avatar) {
     const prev = path.join(UPLOADS_DIR, path.basename(db.contact.avatar));
     if (fs.existsSync(prev)) try { fs.unlinkSync(prev); } catch {}
     db.contact.avatar = '';
@@ -169,7 +251,13 @@ app.delete('/api/avatar', requireAuth, (req, res) => {
 app.get('/api/contact', (req, res) => {
   const db = readJSONSafe(DB_FILE, defaultDB);
   const contact = db.contact || defaultDB.contact;
-  const avatarUrl = contact.avatar ? `/uploads/${encodeURIComponent(path.basename(contact.avatar))}` : '';
+  let avatarUrl = '';
+  if (contact.avatar) {
+    // If already a full URL (cloudinary), use as-is; otherwise build local path
+    avatarUrl = /^https?:\/\//.test(contact.avatar)
+      ? contact.avatar
+      : `/uploads/${encodeURIComponent(path.basename(contact.avatar))}`;
+  }
   res.json({ ...contact, avatarUrl });
 });
 app.put('/api/contact', requireAuth, (req, res) => {
@@ -180,7 +268,8 @@ app.put('/api/contact', requireAuth, (req, res) => {
     instagram: req.body.instagram ?? db.contact.instagram,
     telegram: req.body.telegram ?? db.contact.telegram,
     whatsapp: req.body.whatsapp ?? db.contact.whatsapp,
-    avatar: db.contact.avatar || ''
+    avatar: db.contact.avatar || '',
+    avatarPublicId: db.contact.avatarPublicId || ''
   };
   writeJSONSafe(DB_FILE, db);
   res.json(db.contact);
