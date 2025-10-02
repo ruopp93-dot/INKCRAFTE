@@ -45,23 +45,28 @@ function readJSONSafe(file, fallback) {
   }
 }
 function writeJSONSafe(file, data) { fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8'); }
+function saveDB(file, data) { if (!USE_CLOUD) writeJSONSafe(file, data); }
 
-// Init folders and DB
+// Init folders and DB (avoid FS writes on serverless/Cloudinary mode)
 ensureDir(PUBLIC_DIR);
-ensureDir(UPLOADS_DIR);
-ensureDir(DATA_DIR);
+if (!USE_CLOUD) {
+  ensureDir(UPLOADS_DIR);
+  ensureDir(DATA_DIR);
+}
 const defaultDB = { contact: { name: 'Тату-мастер', phone: '+7 000 000-00-00', instagram: '', telegram: '', whatsapp: '', avatar: '' } };
-if (!fs.existsSync(DB_FILE)) writeJSONSafe(DB_FILE, defaultDB);
+if (!USE_CLOUD && !fs.existsSync(DB_FILE)) saveDB(DB_FILE, defaultDB);
 
 // Copy root images to uploads (best-effort; useful for local dev)
 try {
-  const rootFiles = fs.readdirSync(ROOT);
-  for (const file of rootFiles) {
-    const src = path.join(ROOT, file);
-    const ext = path.extname(file).toLowerCase();
-    if (allowedExt.has(ext) && fs.statSync(src).isFile()) {
-      const dst = path.join(UPLOADS_DIR, file);
-      if (!fs.existsSync(dst)) fs.copyFileSync(src, dst);
+  if (!USE_CLOUD) {
+    const rootFiles = fs.readdirSync(ROOT);
+    for (const file of rootFiles) {
+      const src = path.join(ROOT, file);
+      const ext = path.extname(file).toLowerCase();
+      if (allowedExt.has(ext) && fs.statSync(src).isFile()) {
+        const dst = path.join(UPLOADS_DIR, file);
+        if (!fs.existsSync(dst)) fs.copyFileSync(src, dst);
+      }
     }
   }
 } catch {}
@@ -213,7 +218,7 @@ app.post('/api/avatar', requireAuth, (req, res, next) => avatarUpload(req, res, 
       });
       db.contact.avatarPublicId = uploaded.public_id;
       db.contact.avatar = uploaded.secure_url; // keep URL for client
-      writeJSONSafe(DB_FILE, db);
+      saveDB(DB_FILE, db);
       return res.json({ avatar: uploaded.secure_url });
     } else {
       const file = req.file?.filename;
@@ -224,7 +229,7 @@ app.post('/api/avatar', requireAuth, (req, res, next) => avatarUpload(req, res, 
         if (fs.existsSync(prev)) try { fs.unlinkSync(prev); } catch {}
       }
       db.contact.avatar = file;
-      writeJSONSafe(DB_FILE, db);
+      saveDB(DB_FILE, db);
       return res.json({ avatar: `/uploads/${encodeURIComponent(file)}` });
     }
   } catch (e) {
@@ -237,12 +242,12 @@ app.delete('/api/avatar', requireAuth, async (req, res) => {
     try { await cloudinary.uploader.destroy(db.contact.avatarPublicId); } catch {}
     db.contact.avatarPublicId = '';
     db.contact.avatar = '';
-    writeJSONSafe(DB_FILE, db);
+    saveDB(DB_FILE, db);
   } else if (db.contact?.avatar) {
     const prev = path.join(UPLOADS_DIR, path.basename(db.contact.avatar));
     if (fs.existsSync(prev)) try { fs.unlinkSync(prev); } catch {}
     db.contact.avatar = '';
-    writeJSONSafe(DB_FILE, db);
+    saveDB(DB_FILE, db);
   }
   res.json({ ok: true });
 });
@@ -271,7 +276,7 @@ app.put('/api/contact', requireAuth, (req, res) => {
     avatar: db.contact.avatar || '',
     avatarPublicId: db.contact.avatarPublicId || ''
   };
-  writeJSONSafe(DB_FILE, db);
+  saveDB(DB_FILE, db);
   res.json(db.contact);
 });
 
